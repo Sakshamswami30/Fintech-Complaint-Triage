@@ -1,10 +1,7 @@
-"""
-Load the raw CFPB complaints CSV, filter rows with a narrative,
-and save a stratified sample for training.
-
-The raw file is ~8.7 GB, so we stream it in chunks to avoid
-loading everything into memory at once.
-"""
+# load_and_sample.py
+# Reads the raw CFPB complaints CSV (8+ GB), filters rows with a
+# narrative, and saves a stratified sample by Product.
+# Run: python src/data/load_and_sample.py
 
 # ============ BLOCK 1: Imports and constants ============
 import pandas as pd

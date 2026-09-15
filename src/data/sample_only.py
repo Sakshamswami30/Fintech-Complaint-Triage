@@ -1,9 +1,7 @@
-"""
-Re-run sampling only. Assumes complaints_filtered.csv already exists.
+# sample_only.py
+# Re-runs just the sampling step. Use when filtering succeeded but
+# sampling failed, to avoid re-reading the 8+ GB raw file.
 
-Use this when the filtering step succeeded but the sampling step failed,
-so you don't have to re-read the 8.7 GB raw CSV.
-"""
 import sys
 import os
 
