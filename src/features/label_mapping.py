@@ -1,16 +1,9 @@
-"""
-Label mapping from CFPB raw (Product, Issue) pairs to 4 business classes.
-
-Design decision (Phase 2):
-- We kept only products that align with our 4 target classes.
-- We mapped the most common Issues to one of: fraud, billing_dispute,
-  payment_issue, account_issue.
-- Ambiguous or unrelated issues are dropped.
-
-The mapping uses keyword matching on the Issue string (case-insensitive)
-because the CFPB taxonomy has drifted over the years — the same real-world
-issue appears under slightly different names.
-"""
+# label_mapping.py
+# Maps CFPB (Product, Issue) pairs to our 4 classes:
+# fraud, billing_dispute, payment_issue, account_issue.
+#
+# CFPB renamed some products over the years, so we match on
+# Issue keywords instead of exact labels.
 
 # Which raw Products we keep (they map to our 4 classes)
 KEEP_PRODUCTS = [
