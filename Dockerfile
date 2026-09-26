@@ -7,19 +7,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# install torch CPU-only (saves ~2 GB vs the CUDA build)
+# install torch CPU-only first (avoids pulling ~2 GB of CUDA libs)
 RUN pip install --no-cache-dir \
     --index-url https://download.pytorch.org/whl/cpu \
     torch
 
-# then everything else from PyPI
+# then the rest
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt && \
     pip install --no-cache-dir fastapi "uvicorn[standard]" pydantic transformers
 
-# copy project files
+# copy only the source — the model is downloaded from HuggingFace at runtime
 COPY src/ ./src/
-COPY models/distilbert/ ./models/distilbert/
 
 EXPOSE 8000
 
