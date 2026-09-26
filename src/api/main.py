@@ -4,10 +4,11 @@
 
 import torch
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from transformers import DistilBertTokenizerFast, DistilBertForSequenceClassification
 
-MODEL_PATH = "models/distilbert"
+MODEL_PATH = "Saksham-30/fintech-distilbert"
 MAX_LEN = 256
 
 app = FastAPI(
@@ -16,7 +17,14 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# load model once at startup
+# allow the frontend (running on a different origin) to call this API
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 tokenizer = DistilBertTokenizerFast.from_pretrained(MODEL_PATH)
 model = DistilBertForSequenceClassification.from_pretrained(MODEL_PATH)
 model.eval()
@@ -34,7 +42,7 @@ class ComplaintResponse(BaseModel):
 
 @app.get("/")
 def root():
-    return {"status": "ok", "model": "distilbert-complaint-triage"}
+    return {"status": "ok", "model": MODEL_PATH}
 
 
 @app.get("/health")
