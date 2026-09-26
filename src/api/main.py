@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from transformers import DistilBertTokenizerFast, DistilBertForSequenceClassification
 
-MODEL_PATH = "Saksham-30/fintech-distilbert"
+MODEL_PATH = "Saksham-30/fintech-distilbert-fp16"
 MAX_LEN = 256
 
 app = FastAPI(
@@ -17,7 +17,6 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# allow the frontend (running on a different origin) to call this API
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -27,6 +26,7 @@ app.add_middleware(
 
 tokenizer = DistilBertTokenizerFast.from_pretrained(MODEL_PATH)
 model = DistilBertForSequenceClassification.from_pretrained(MODEL_PATH)
+model = model.half()
 model.eval()
 
 
@@ -61,7 +61,7 @@ def predict(req: ComplaintRequest):
     with torch.no_grad():
         logits = model(**inputs).logits
 
-    probs = torch.softmax(logits, dim=-1)[0]
+    probs = torch.softmax(logits.float(), dim=-1)[0]
     pred_id = int(probs.argmax().item())
     category = model.config.id2label[pred_id]
     confidence = float(probs[pred_id].item())
