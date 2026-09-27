@@ -1,25 +1,45 @@
 # Fintech Complaint Triage
 
-Classifies fintech customer complaints into 4 categories (fraud, billing dispute, payment issue, account issue) and serves predictions via a FastAPI endpoint.
+An NLP classifier that reads fintech complaints and routes them to the right team. Built with DistilBERT, deployed with FastAPI + Docker, and served through a custom frontend.
 
-## Problem
+**Live demo:** https://fintech-triage-frontend.vercel.app
+**API:** https://fintech-complaint-triage.onrender.com
 
-Fintech support teams receive thousands of complaints daily across email, chat, and app forms. Manual triage is slow, expensive, and error-prone — and misrouting a fraud complaint can mean regulatory penalties. This project builds an NLP classifier that reads a complaint and routes it to the right team.
+## Why
+
+Support teams at fintechs get thousands of complaints a day. Someone has to read each one and figure out where it goes — fraud team, billing, tech ops, or general support. Misroute a fraud dispute and you've got a regulatory problem on your hands. This project automates the first pass.
+
+## What it does
+
+Input: a complaint text.
+
+Output:
+```json
+{
+  "category": "payment_issue",
+  "confidence": 0.76,
+  "all_scores": {
+    "account_issue": 0.065,
+    "billing_dispute": 0.080,
+    "fraud": 0.094,
+    "payment_issue": 0.762
+  }
+}
+```
+
+Four classes:
+- `fraud` — unauthorized transactions, identity theft, scams
+- `billing_dispute` — wrong charges, fee disputes, refunds
+- `payment_issue` — failed payments, money deducted but not received
+- `account_issue` — login problems, account closure, KYC issues
 
 ## Data
 
-Source: [CFPB Consumer Complaint Database](https://www.consumerfinance.gov/data-research/consumer-complaints/) (~17.7M rows, ~8.7 GB raw).
+Source: [CFPB Consumer Complaint Database](https://www.consumerfinance.gov/data-research/consumer-complaints/).
 
-I filtered to rows with a written narrative, kept 7 products aligned with the target classes, and labeled each complaint by mapping the CFPB `Issue` field to one of four classes:
+The raw file is ~8.7 GB with 17.7M rows. Most rows have no written narrative, so I filtered to ~3.85M rows with text, then took a stratified sample by product type down to ~27k labeled examples.
 
-| Class | Description | Team |
-|---|---|---|
-| `fraud` | Unauthorized transactions, identity theft, scams | Fraud Ops |
-| `billing_dispute` | Wrong charges, fee disputes, refund requests | Billing |
-| `payment_issue` | Failed transactions, money deducted but not received | Tech Ops |
-| `account_issue` | Login, KYC, account closure, access problems | Customer Support |
-
-Final dataset: **27,692 labeled complaints**, roughly balanced (2.4:1 max/min ratio).
+Labels came from the CFPB `Issue` field, mapped to our 4 classes via keyword rules in `src/features/label_mapping.py`. This is where most of the noise in the dataset comes from — see the "Limitations" section.
 
 ## Results
 
@@ -28,11 +48,11 @@ Final dataset: **27,692 labeled complaints**, roughly balanced (2.4:1 max/min ra
 | TF-IDF + Logistic Regression | 0.71 | 0.71 |
 | TF-IDF + LinearSVC | 0.72 | 0.70 |
 | TF-IDF + SGD | 0.72 | 0.71 |
-| DistilBERT (fine-tuned) | **0.75** | **0.73** |
+| **DistilBERT (fine-tuned)** | **0.75** | **0.73** |
 
 DistilBERT was fine-tuned on a Colab T4 for 3 epochs (max length 256, batch size 32, learning rate 2e-5).
 
-Per-class F1:
+Per-class F1 for the final model:
 
 | Class | F1 |
 |---|---|
@@ -48,25 +68,37 @@ Fine-tuning DistilBERT only got us +2 points over a TF-IDF baseline. That surpri
 Two things going on:
 
 1. The CFPB `Issue` field doesn't always match the narrative. A complaint filed under "Closing your account" might actually describe fraud. So even a strong model can't do much better than the labels allow.
-2. `fraud` and `payment_issue` overlap heavily. "Unauthorized transaction" could be either one depending on context. The confusion matrix shows the model flipping between these two often.
+2. `fraud` and `payment_issue` overlap heavily. "Unauthorized transaction" could be either one depending on context.
 
 If I were doing this in production, the next step wouldn't be a bigger model — it would be cleaning up the labels.
 
-## Project Structure
+## Architecture
 
 ```
-fintech-complaint-triage/
-├── src/
-│   ├── data/               # CFPB loading and sampling
-│   ├── features/           # Label mapping rules
-│   ├── models/             # Baseline, comparison, DistilBERT training
-│   └── api/                # FastAPI service
-├── notebooks/              # EDA and label exploration
-├── models/                 # Trained model artifacts (not tracked)
-├── Dockerfile
-├── docker-compose.yml
-└── requirements.txt
+┌─────────────────────────┐
+│  Frontend (Vercel)      │
+│  HTML + CSS + JS        │
+└────────────┬────────────┘
+             │ HTTPS POST /predict
+             ▼
+┌─────────────────────────┐
+│  API (Render)           │
+│  FastAPI + Docker       │
+│  fp16 DistilBERT        │
+└────────────┬────────────┘
+             │ Downloads model
+             ▼
+┌─────────────────────────┐
+│  Model (HuggingFace Hub)│
+│  Saksham-30/fintech-    │
+│  distilbert-fp16        │
+└─────────────────────────┘
 ```
+
+- Model stored on HuggingFace Hub (~134 MB, fp16)
+- FastAPI backend containerized with Docker, deployed on Render
+- Frontend on Vercel
+- UptimeRobot pings the API every 5 minutes to keep the container warm
 
 ## Setup
 
@@ -81,20 +113,17 @@ venv\Scripts\activate      # Windows
 pip install -r requirements.txt
 ```
 
-The trained DistilBERT model isn't tracked in the repo (~250 MB). You'll need to either:
+The trained model isn't checked into the repo. It's downloaded from HuggingFace at startup.
 
-- Download it separately and place it in `models/distilbert/`, or
-- Retrain from scratch: `python src/models/train_distilbert.py` (needs a GPU — I used Colab)
-
-## Running the API
+## Running the API locally
 
 ```bash
 uvicorn src.api.main:app --host 0.0.0.0 --port 8000
 ```
 
-Swagger docs available at http://localhost:8000/docs
+Swagger docs: http://localhost:8000/docs
 
-Example request:
+Example:
 
 ```bash
 curl -X POST http://localhost:8000/predict \
@@ -102,51 +131,44 @@ curl -X POST http://localhost:8000/predict \
   -d '{"text": "My payment failed but the money was deducted from my account"}'
 ```
 
-Response:
-
-```json
-{
-  "category": "payment_issue",
-  "confidence": 0.7649,
-  "all_scores": {
-    "account_issue": 0.0617,
-    "billing_dispute": 0.0649,
-    "fraud": 0.1085,
-    "payment_issue": 0.7649
-  }
-}
-```
-
-## Running with Docker
+## Docker
 
 ```bash
 docker-compose up --build
 ```
 
-API available at http://localhost:8000.
+The image uses the CPU-only PyTorch build to keep it under 2 GB.
 
-The image is ~3.7 GB because of PyTorch. Torch is installed from the CPU-only index to avoid pulling CUDA libraries — saves about 2 GB.
+## Repo layout
 
-## Stack
-
-- Python 3.12
-- PyTorch, HuggingFace Transformers
-- scikit-learn (baseline)
-- FastAPI, Uvicorn
-- Docker
+```
+src/
+  data/         # CFPB loading + sampling
+  features/     # Label mapping rules
+  models/       # Baseline, DistilBERT training, fp16 conversion
+  api/          # FastAPI service
+notebooks/      # EDA and label exploration
+models/         # Saved artifacts (not tracked)
+Dockerfile
+docker-compose.yml
+```
 
 ## Limitations
 
-- Trained on a 27k sample, not the full CFPB dataset
-- Label noise (~5–10%) from the CFPB `Issue` field
-- Low-confidence predictions (< 0.6) should go to human review in production
-- English only
-- Not tested outside CFPB data
+- **Label noise.** Roughly 5-10% of examples are probably mislabeled. The CFPB taxonomy changed over the years and doesn't map cleanly to our 4 classes.
+- **Small training set.** 22k training examples is on the low end for BERT fine-tuning.
+- **Low confidence means low confidence.** Predictions under 0.6 should probably go to a human.
+- **Cold starts.** The Render free tier sleeps after 15 minutes of inactivity. First request after sleep takes 60–90 seconds. UptimeRobot mitigates this.
+- **English only.**
 
 ## TODO
 
 - [ ] Relabel a subset with an LLM and see if F1 improves
-- [ ] Add a confidence threshold and a "needs_review" flag
+- [ ] Add confidence threshold with human-in-the-loop fallback
 - [ ] Batch prediction endpoint
-- [ ] ONNX export for faster inference
-- [ ] Write tests for the API
+- [ ] ONNX export to speed up inference
+- [ ] API tests
+
+## Stack
+
+Python 3.12, PyTorch, HuggingFace Transformers, scikit-learn, FastAPI, Docker, Render, Vercel.
