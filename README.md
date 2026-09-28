@@ -1,9 +1,19 @@
 # Fintech Complaint Triage
 
-An NLP classifier that reads fintech complaints and routes them to the right team. Built with DistilBERT, deployed with FastAPI + Docker, and served through a custom frontend.
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Open%20App-38bdf8?style=flat-square)](https://fintech-triage-frontend.vercel.app)
+[![API Docs](https://img.shields.io/badge/API-Swagger%20Docs-22c55e?style=flat-square)](https://fintech-complaint-triage.onrender.com/docs)
+[![GitHub](https://img.shields.io/badge/GitHub-Repository-181717?style=flat-square&logo=github)](https://github.com/Sakshamswami30/Fintech-Complaint-Triage)
+[![HuggingFace](https://img.shields.io/badge/Model-HuggingFace-ffd21e?style=flat-square&logo=huggingface&logoColor=black)](https://huggingface.co/Saksham-30/fintech-distilbert-fp16)
+[![Python 3.12](https://img.shields.io/badge/Python-3.12-blue?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.14-EE4C2C?style=flat-square&logo=pytorch&logoColor=white)](https://pytorch.org/)
+[![Docker](https://img.shields.io/badge/Docker-ready-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 
-**Live demo:** https://fintech-triage-frontend.vercel.app
-**API:** https://fintech-complaint-triage.onrender.com
+**Live Demo:** https://fintech-triage-frontend.vercel.app
+**API Docs:** https://fintech-complaint-triage.onrender.com/docs
+
+An NLP classifier that reads fintech complaints and routes them to the right team. Built with DistilBERT, deployed with FastAPI + Docker, and served through a custom frontend.
 
 ## Why
 
@@ -14,6 +24,7 @@ Support teams at fintechs get thousands of complaints a day. Someone has to read
 Input: a complaint text.
 
 Output:
+
 ```json
 {
   "category": "payment_issue",
@@ -28,6 +39,7 @@ Output:
 ```
 
 Four classes:
+
 - `fraud` — unauthorized transactions, identity theft, scams
 - `billing_dispute` — wrong charges, fee disputes, refunds
 - `payment_issue` — failed payments, money deducted but not received
